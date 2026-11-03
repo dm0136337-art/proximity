@@ -14,7 +14,7 @@ export default function AboutPage() {
         <p className="mt-6 max-w-3xl leading-8 text-zinc-400">
           Our focus is on developing literary-inspired stories for the screen, shaping written works into
           adaptations for film and television.
-          "An established production partner collaborating with leading global entertainment companies, including Netflix, Sony Pictures Entertainment, and Universal Pictures."
+          &quot;An established production partner collaborating with leading global entertainment companies, including Netflix, Sony Pictures Entertainment, and Universal Pictures.&quot;
         </p>
       </section>
     </main>
