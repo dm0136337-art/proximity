@@ -28,7 +28,7 @@ export default async function AdminPage() {
         </form>
       </div>
 
-      <AdminDashboard initialProjects={dashboardData.projects} initialInquiries={dashboardData.inquiries} />
+      <AdminDashboard initialProjects={dashboardData.projects} />
     </div>
   );
 }

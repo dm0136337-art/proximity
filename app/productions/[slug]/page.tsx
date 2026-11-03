@@ -52,7 +52,7 @@ export default async function ProductionDetailPage({
             </div>
             <div className="rounded-2xl border border-white/10 bg-zinc-900 p-4">
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Release</p>
-              <p className="mt-3 text-lg text-white">{project.expected_release_date ?? "TBD"}</p>
+              <p className="mt-3 text-lg text-white">{project.expected_release_date ?? "TBA"}</p>
             </div>
           </div>
         </div>
@@ -78,18 +78,6 @@ export default async function ProductionDetailPage({
         </div>
       </section>
 
-      {project.promotional_images_display && project.promotional_images_display.length > 0 ? (
-        <section className="mt-16">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Gallery</h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {project.promotional_images_display.map((image) => (
-              <div key={image} className="relative h-72 overflow-hidden rounded-[1.5rem] border border-white/10">
-                <Image src={image} alt={`${project.title} still`} fill className="object-cover" unoptimized />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </main>
   );
 }

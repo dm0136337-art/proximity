@@ -9,7 +9,8 @@ A luxury cinematic production studio website built with Next.js, TypeScript, Tai
 - Individual project detail pages
 - Contact inquiry form with validation and database submission
 - Supabase Auth admin dashboard with server-verified administrator roles
-- CRUD operations for projects and inquiries via server-side routes
+- Project create, read, update, and delete operations via server-side routes
+- Contact form submissions saved through a validated, rate-limited server-side route
 - Row-level security guidance for Supabase tables
 - Vercel-ready deployment setup
 
@@ -25,6 +26,7 @@ A luxury cinematic production studio website built with Next.js, TypeScript, Tai
 4. Apply the migrations in order in the Supabase SQL Editor:
    - `supabase/migrations/001_create_schema.sql`
    - `supabase/migrations/002_secure_inquiries_and_rate_limits.sql`
+   - `supabase/migrations/003_film_project_information.sql`
    The scripts are safe to rerun: they create missing objects, replace only their own trigger and named policies, and do not drop tables or rewrite records. The second migration adds allowed-status constraints and installs the database-backed rate limiter. Review existing production status values before applying it; constraints intentionally fail rather than rewrite unexpected existing data. These files are not applied automatically by the application or deployment.
 5. In Supabase Storage, create a **private** bucket named `production-assets`, set the maximum file size to 5 MB, and allow JPEG, PNG, WebP, and AVIF. Do not add public read/write policies. The server uses the service-role key to upload assets and creates short-lived signed URLs only for assets attached to published projects.
 6. Start the app:
@@ -50,7 +52,7 @@ The login form sends credentials to the server, which authenticates them with Su
 1. Push the existing project to GitHub and import that repository into Vercel.
 2. Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `RATE_LIMIT_SECRET` in Vercel **Project Settings → Environment Variables** for the Production environment. Keep the service-role key and rate-limit secret server-only. `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` are obsolete and are not used by the current authentication implementation.
 3. Apply the Supabase migrations and configure the private `production-assets` bucket before opening the deployment to visitors.
-4. Deploy to a preview environment and verify public project visibility, admin login, uploads, inquiries, and unauthorized API responses before promoting to production.
+4. Deploy to a preview environment and verify public project visibility, admin login, poster uploads, contact form submissions, and unauthorized API responses before promoting to production.
 5. Run `npm run lint` and `npm run build` locally before deployment.
 
 ## Supabase notes

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-import { getAdminSupabaseClient, withProjectDisplayAssets } from "@/lib/supabase";
+import {
+  coerceProject,
+  getAdminSupabaseClient,
+  withProjectPosterDisplayUrl,
+} from "@/lib/supabase";
 
 const projectStatusSchema = z.enum([
   "In Development",
@@ -34,11 +38,15 @@ const projectSchema = z.strictObject({
   slug: z.string().trim().min(1).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   synopsis: z.string().trim().min(10).max(10000),
   genre: z.string().trim().min(1).max(100),
-  director: z.string().trim().min(1).max(200),
+  based_on: z.string().trim().max(300).optional().default(""),
+  author: z.string().trim().max(200).optional().default(""),
+  publisher: z.string().trim().max(200).optional().default(""),
+  producer: z.string().trim().max(200).optional().default(""),
+  executive_producers: z.array(z.string().trim().min(1).max(200)).max(100).optional().default([]),
+  director: z.string().trim().max(200).optional().default(""),
+  screenplay: z.string().trim().max(200).optional().default(""),
+  production_company: z.string().trim().max(200).optional().default(""),
   poster_url: assetReferenceSchema.optional().default(""),
-  promotional_images: z.array(assetReferenceSchema).max(20).optional().default([]),
-  cast: z.array(z.string().trim().min(1).max(200)).max(100).optional().default([]),
-  production_crew: z.array(z.string().trim().min(1).max(200)).max(100).optional().default([]),
   production_start_date: z.preprocess(
     (value) => (value === "" ? null : value),
     z.iso.date().nullable().optional(),
@@ -72,14 +80,17 @@ export async function GET() {
     return NextResponse.json({ error: "Project management is not configured." }, { status: 503 });
   }
 
-  const { data, error } = await client.from("projects").select("*").order("created_at", { ascending: false });
+  const { data, error } = await client
+    .from("projects")
+    .select("*")
+    .order("created_at", { ascending: false });
   if (error) {
     console.error("Could not load administrator projects.", { code: error.code });
     return NextResponse.json({ error: "Could not load projects." }, { status: 500 });
   }
 
   const projects = await Promise.all(
-    (data ?? []).map((project) => withProjectDisplayAssets(client, project)),
+    (data ?? []).map((project) => withProjectPosterDisplayUrl(client, coerceProject(project))),
   );
   return NextResponse.json({ projects }, { status: 200 });
 }
@@ -115,17 +126,21 @@ export async function POST(request: Request) {
       slug: parsed.data.slug,
       synopsis: parsed.data.synopsis,
       genre: parsed.data.genre,
+      based_on: parsed.data.based_on || null,
+      author: parsed.data.author || null,
+      publisher: parsed.data.publisher || null,
+      producer: parsed.data.producer || null,
+      executive_producers: parsed.data.executive_producers,
       director: parsed.data.director,
+      screenplay: parsed.data.screenplay || null,
+      production_company: parsed.data.production_company || null,
       poster_url: parsed.data.poster_url || null,
-      promotional_images: parsed.data.promotional_images,
-      cast: parsed.data.cast,
-      production_crew: parsed.data.production_crew,
       production_start_date: parsed.data.production_start_date || null,
       expected_release_date: parsed.data.expected_release_date || null,
       production_status: parsed.data.production_status,
       is_published: parsed.data.is_published,
     })
-    .select()
+    .select("*")
     .single();
 
   if (error) {
@@ -133,7 +148,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not save the project." }, { status: 500 });
   }
 
-  return NextResponse.json({ project: await withProjectDisplayAssets(client, data) }, { status: 201 });
+  return NextResponse.json({
+    project: await withProjectPosterDisplayUrl(client, coerceProject(data)),
+  }, { status: 201 });
 }
 
 export async function PUT(request: Request) {
@@ -167,18 +184,22 @@ export async function PUT(request: Request) {
       slug: parsed.data.slug,
       synopsis: parsed.data.synopsis,
       genre: parsed.data.genre,
+      based_on: parsed.data.based_on || null,
+      author: parsed.data.author || null,
+      publisher: parsed.data.publisher || null,
+      producer: parsed.data.producer || null,
+      executive_producers: parsed.data.executive_producers,
       director: parsed.data.director,
+      screenplay: parsed.data.screenplay || null,
+      production_company: parsed.data.production_company || null,
       poster_url: parsed.data.poster_url || null,
-      promotional_images: parsed.data.promotional_images,
-      cast: parsed.data.cast,
-      production_crew: parsed.data.production_crew,
       production_start_date: parsed.data.production_start_date || null,
       expected_release_date: parsed.data.expected_release_date || null,
       production_status: parsed.data.production_status,
       is_published: parsed.data.is_published,
     })
     .eq("id", parsed.data.id)
-    .select()
+    .select("*")
     .maybeSingle();
 
   if (error) {
@@ -190,7 +211,9 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ project: await withProjectDisplayAssets(client, data) }, { status: 200 });
+  return NextResponse.json({
+    project: await withProjectPosterDisplayUrl(client, coerceProject(data)),
+  }, { status: 200 });
 }
 
 export async function DELETE(request: Request) {

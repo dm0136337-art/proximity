@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useMemo, useState } from "react";
-import type { InquiryRecord, ProjectRecord, ProjectStatus } from "@/lib/supabase";
+import { FormEvent, useRef, useState } from "react";
+import type { ProjectRecord, ProjectStatus } from "@/lib/supabase";
 
 const STATUS_OPTIONS: ProjectStatus[] = [
   "In Development",
@@ -14,49 +14,101 @@ const STATUS_OPTIONS: ProjectStatus[] = [
 
 const emptyProject = {
   title: "",
-  slug: "",
   synopsis: "",
   genre: "",
+  based_on: "",
+  author: "",
+  publisher: "",
+  producer: "",
+  executive_producers: [""],
   director: "",
+  screenplay: "",
+  production_company: "",
   poster_url: "",
-  promotional_images: "",
-  cast: "",
-  production_crew: "",
   production_start_date: "",
   expected_release_date: "",
   production_status: "In Development" as ProjectStatus,
   is_published: true,
 };
 
+function formatProjectDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  }).format(new Date(year, month - 1, day));
+}
+
+function ProjectDateField({
+  id,
+  label,
+  description,
+  placeholder,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const openDatePicker = () => {
+    const input = dateInputRef.current;
+    if (!input) return;
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    } else {
+      input.click();
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
+      <div className="space-y-1.5">
+        <p id={`${id}-label`} className="text-sm font-semibold text-white">{label}</p>
+        <p id={`${id}-description`} className="text-sm leading-6 text-zinc-400">{description}</p>
+      </div>
+      <button
+        type="button"
+        aria-labelledby={`${id}-label`}
+        aria-describedby={`${id}-description`}
+        onClick={openDatePicker}
+        className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-3 text-left text-sm text-white transition hover:border-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        {value ? formatProjectDate(value) : <span className="text-zinc-400">{placeholder}</span>}
+      </button>
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-hidden="true"
+        tabIndex={-1}
+        className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+      />
+    </div>
+  );
+}
+
 export function AdminDashboard({
   initialProjects,
-  initialInquiries,
 }: {
   initialProjects: ProjectRecord[];
-  initialInquiries: InquiryRecord[];
 }) {
   const [projects, setProjects] = useState(initialProjects);
-  const [inquiries, setInquiries] = useState(initialInquiries);
   const [projectForm, setProjectForm] = useState(emptyProject);
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-
-  const filteredInquiries = useMemo(() => {
-    return inquiries.filter((inquiry) => {
-      const matchesStatus = statusFilter === "all" || inquiry.status === statusFilter;
-      const query = searchTerm.trim().toLowerCase();
-      const matchesSearch =
-        !query ||
-        `${inquiry.first_name} ${inquiry.last_name}`.toLowerCase().includes(query) ||
-        inquiry.email.toLowerCase().includes(query);
-      return matchesStatus && matchesSearch;
-    });
-  }, [inquiries, searchTerm, statusFilter]);
 
   const refreshDashboard = async () => {
     const response = await fetch("/api/admin/projects");
@@ -65,13 +117,6 @@ export function AdminDashboard({
       throw new Error(payload.error || "Failed to refresh projects.");
     }
     setProjects(payload.projects ?? []);
-
-    const inquiriesResponse = await fetch("/api/admin/inquiries");
-    const inquiryPayload = await inquiriesResponse.json();
-    if (!inquiriesResponse.ok) {
-      throw new Error(inquiryPayload.error || "Failed to refresh inquiries.");
-    }
-    setInquiries(inquiryPayload.inquiries ?? []);
   };
 
   const handleProjectSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -82,15 +127,9 @@ export function AdminDashboard({
 
     const payload = {
       ...projectForm,
-      cast: projectForm.cast ? projectForm.cast.split("\n").map((item) => item.trim()).filter(Boolean) : [],
-      production_crew: projectForm.production_crew
-        ? projectForm.production_crew.split("\n").map((item) => item.trim()).filter(Boolean)
-        : [],
-      promotional_images: projectForm.promotional_images
-        ? projectForm.promotional_images.split("\n").map((item) => item.trim()).filter(Boolean)
-        : [],
+      executive_producers: projectForm.executive_producers.map((item) => item.trim()).filter(Boolean),
       ...(editingId ? { id: editingId } : {}),
-      slug: projectForm.slug || projectForm.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+      slug: editingSlug || projectForm.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
     };
 
     try {
@@ -107,6 +146,7 @@ export function AdminDashboard({
 
       setProjectForm(emptyProject);
       setEditingId(null);
+      setEditingSlug(null);
       setPosterPreviewUrl(null);
       setNotice("Project saved successfully.");
       await refreshDashboard();
@@ -118,6 +158,10 @@ export function AdminDashboard({
   };
 
   const handleProjectDelete = async (id: string) => {
+    if (!window.confirm("Delete this project? This action cannot be undone.")) {
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/projects", {
         method: "DELETE",
@@ -135,57 +179,23 @@ export function AdminDashboard({
     }
   };
 
-  const handleInquiryStatus = async (id: string, status: InquiryRecord["status"]) => {
-    try {
-      const response = await fetch("/api/admin/inquiries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || "Failed to update the inquiry.");
-      }
-      setInquiries((current) =>
-        current.map((inquiry) => (inquiry.id === id ? { ...inquiry, status } : inquiry)),
-      );
-      setNotice("Inquiry updated.");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Failed to update the inquiry.");
-    }
-  };
-
-  const handleInquiryDelete = async (id: string) => {
-    try {
-      const response = await fetch("/api/admin/inquiries", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || "Failed to delete the inquiry.");
-      }
-      setInquiries((current) => current.filter((inquiry) => inquiry.id !== id));
-      setNotice("Inquiry deleted.");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Failed to delete the inquiry.");
-    }
-  };
-
   const startEditingProject = (project: ProjectRecord) => {
     setEditingId(project.id);
+    setEditingSlug(project.slug);
     setPosterPreviewUrl(project.poster_display_url ?? null);
     setProjectForm({
       title: project.title,
-      slug: project.slug,
       synopsis: project.synopsis,
       genre: project.genre,
+      based_on: project.based_on ?? "",
+      author: project.author ?? "",
+      publisher: project.publisher ?? "",
+      producer: project.producer ?? "",
+      executive_producers: project.executive_producers?.length ? project.executive_producers : [""],
       director: project.director,
+      screenplay: project.screenplay ?? "",
+      production_company: project.production_company ?? "",
       poster_url: project.poster_url ?? "",
-      promotional_images: project.promotional_images?.join("\n") ?? "",
-      cast: project.cast?.join("\n") ?? "",
-      production_crew: project.production_crew?.join("\n") ?? "",
       production_start_date: project.production_start_date ?? "",
       expected_release_date: project.expected_release_date ?? "",
       production_status: project.production_status,
@@ -224,21 +234,6 @@ export function AdminDashboard({
       {notice ? <p className="rounded border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{notice}</p> : null}
       {error ? <p className="rounded border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
 
-      <section className="grid gap-4 md:grid-cols-5">
-        {[
-          { label: "Total projects", value: projects.length },
-          { label: "In production", value: projects.filter((project) => project.production_status === "In Production").length },
-          { label: "Completed", value: projects.filter((project) => project.production_status === "Completed").length },
-          { label: "Total inquiries", value: inquiries.length },
-          { label: "New inquiries", value: inquiries.filter((inquiry) => inquiry.status === "new").length },
-        ].map((card) => (
-          <div key={card.label} className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-            <p className="text-sm text-zinc-400">{card.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-white">{card.value}</p>
-          </div>
-        ))}
-      </section>
-
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6">
           <div className="mb-6 flex items-center justify-between">
@@ -248,6 +243,7 @@ export function AdminDashboard({
                 type="button"
                 onClick={() => {
                   setEditingId(null);
+                  setEditingSlug(null);
                   setProjectForm(emptyProject);
                   setPosterPreviewUrl(null);
                 }}
@@ -258,21 +254,128 @@ export function AdminDashboard({
             ) : null}
           </div>
 
-          <form onSubmit={handleProjectSubmit} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <input
-                value={projectForm.title}
-                onChange={(event) => setProjectForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Project title"
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
-              <input
-                value={projectForm.slug}
-                onChange={(event) => setProjectForm((current) => ({ ...current, slug: event.target.value }))}
-                placeholder="Slug"
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
-            </div>
+          <form onSubmit={handleProjectSubmit} className="space-y-5">
+            <fieldset className="space-y-4">
+              <legend className="mb-3 text-base font-semibold text-white">Basic Project Information</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  aria-label="Film title"
+                  value={projectForm.title}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, title: event.target.value }))}
+                  placeholder="Film title"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Genre"
+                  value={projectForm.genre}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, genre: event.target.value }))}
+                  placeholder="Genre"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Based on"
+                  value={projectForm.based_on}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, based_on: event.target.value }))}
+                  placeholder="Based on (original book title)"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Author"
+                  value={projectForm.author}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, author: event.target.value }))}
+                  placeholder="Author"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Publisher"
+                  value={projectForm.publisher}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, publisher: event.target.value }))}
+                  placeholder="Publisher"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-4 border-t border-white/10 pt-5">
+              <legend className="mb-3 text-base font-semibold text-white">Production Information</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input
+                  aria-label="Producer"
+                  value={projectForm.producer}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, producer: event.target.value }))}
+                  placeholder="Producer"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Director"
+                  value={projectForm.director}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, director: event.target.value }))}
+                  placeholder="Director (if confirmed)"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Screenplay or written by"
+                  value={projectForm.screenplay}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, screenplay: event.target.value }))}
+                  placeholder="Screenplay / Written By (if confirmed)"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+                <input
+                  aria-label="Production company"
+                  value={projectForm.production_company}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, production_company: event.target.value }))}
+                  placeholder="Production Company"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-zinc-300">Executive Producer</p>
+                {projectForm.executive_producers.map((producer, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      value={producer}
+                      onChange={(event) =>
+                        setProjectForm((current) => ({
+                          ...current,
+                          executive_producers: current.executive_producers.map((name, itemIndex) =>
+                            itemIndex === index ? event.target.value : name,
+                          ),
+                        }))
+                      }
+                      aria-label={`Executive producer ${index + 1}`}
+                      placeholder={`Executive Producer ${index + 1}`}
+                      className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                    />
+                    {projectForm.executive_producers.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProjectForm((current) => ({
+                            ...current,
+                            executive_producers: current.executive_producers.filter((_, itemIndex) => itemIndex !== index),
+                          }))
+                        }
+                        className="rounded-xl border border-white/10 px-3 text-sm text-zinc-300"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProjectForm((current) => ({
+                      ...current,
+                      executive_producers: [...current.executive_producers, ""],
+                    }))
+                  }
+                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-zinc-200"
+                >
+                  Add executive producer
+                </button>
+              </div>
+            </fieldset>
 
             <textarea
               value={projectForm.synopsis}
@@ -282,19 +385,7 @@ export function AdminDashboard({
               className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
             />
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <input
-                value={projectForm.genre}
-                onChange={(event) => setProjectForm((current) => ({ ...current, genre: event.target.value }))}
-                placeholder="Genre"
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
-              <input
-                value={projectForm.director}
-                onChange={(event) => setProjectForm((current) => ({ ...current, director: event.target.value }))}
-                placeholder="Director"
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
+            <div className="grid gap-4 md:grid-cols-2">
               <select
                 value={projectForm.production_status}
                 onChange={(event) => setProjectForm((current) => ({ ...current, production_status: event.target.value as ProjectStatus }))}
@@ -309,45 +400,25 @@ export function AdminDashboard({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <input
-                type="date"
+              <ProjectDateField
+                id="production-start-date"
+                label="Production Start Date"
+                description=""
+                placeholder="Select production start date"
                 value={projectForm.production_start_date}
-                onChange={(event) => setProjectForm((current) => ({ ...current, production_start_date: event.target.value }))}
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                onChange={(value) => setProjectForm((current) => ({ ...current, production_start_date: value }))}
               />
-              <input
-                type="date"
+              <ProjectDateField
+                id="expected-release-date"
+                label="Expected Release Date"
+                description=""
+                placeholder="Select expected release date"
                 value={projectForm.expected_release_date}
-                onChange={(event) => setProjectForm((current) => ({ ...current, expected_release_date: event.target.value }))}
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <textarea
-                value={projectForm.cast}
-                onChange={(event) => setProjectForm((current) => ({ ...current, cast: event.target.value }))}
-                placeholder="Cast (one per line)"
-                rows={4}
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
-              <textarea
-                value={projectForm.production_crew}
-                onChange={(event) => setProjectForm((current) => ({ ...current, production_crew: event.target.value }))}
-                placeholder="Production crew (one per line)"
-                rows={4}
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                onChange={(value) => setProjectForm((current) => ({ ...current, expected_release_date: value }))}
               />
             </div>
 
             <div className="space-y-3">
-              <textarea
-                value={projectForm.promotional_images}
-                onChange={(event) => setProjectForm((current) => ({ ...current, promotional_images: event.target.value }))}
-                placeholder="Supporting image URLs (one per line)"
-                rows={3}
-                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              />
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200">
                 Upload poster
                 <input
@@ -393,6 +464,22 @@ export function AdminDashboard({
                   <div>
                     <p className="font-medium text-white">{project.title}</p>
                     <p className="text-xs text-zinc-400">{project.production_status}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {[
+                        project.genre && `Genre: ${project.genre}`,
+                        project.based_on && `Based on: ${project.based_on}`,
+                        project.author && `Author: ${project.author}`,
+                        project.publisher && `Publisher: ${project.publisher}`,
+                        project.producer && `Producer: ${project.producer}`,
+                        project.executive_producers?.length &&
+                          `Executive Producer: ${project.executive_producers.join(", ")}`,
+                        project.director && `Director: ${project.director}`,
+                        project.screenplay && `Screenplay / Written By: ${project.screenplay}`,
+                        project.production_company && `Production Company: ${project.production_company}`,
+                      ]
+                        .filter((value): value is string => Boolean(value))
+                        .join(" · ")}
+                    </p>
                   </div>
                   <div className="flex gap-2 text-xs">
                     <button onClick={() => startEditingProject(project)} className="rounded-full border border-white/15 px-2 py-1 text-zinc-200">Edit</button>
@@ -405,64 +492,6 @@ export function AdminDashboard({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-zinc-900 p-6">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h3 className="text-xl font-semibold text-white">Inquiries</h3>
-          <div className="flex flex-col gap-3 md:flex-row">
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search name or email"
-              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
-            />
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
-            >
-              <option value="all">All statuses</option>
-              <option value="new">New</option>
-              <option value="read">Read</option>
-              <option value="responded">Responded</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {filteredInquiries.length === 0 ? (
-            <p className="text-sm text-zinc-400">No inquiries match your filters.</p>
-          ) : (
-            filteredInquiries.map((inquiry) => (
-              <div key={inquiry.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="font-medium text-white">
-                      {inquiry.first_name} {inquiry.last_name}
-                    </p>
-                    <p className="text-sm text-zinc-400">{inquiry.email}</p>
-                    <p className="text-sm text-zinc-400">{inquiry.phone_number}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {(["new", "read", "responded"] as const).map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => handleInquiryStatus(inquiry.id, status)}
-                        className={inquiry.status === status ? "rounded-full bg-white px-2 py-1 text-black" : "rounded-full border border-white/15 px-2 py-1 text-zinc-200"}
-                      >
-                        {status}
-                      </button>
-                    ))}
-                    <button onClick={() => handleInquiryDelete(inquiry.id)} className="rounded-full border border-rose-500/30 px-2 py-1 text-rose-200">Delete</button>
-                  </div>
-                </div>
-
-                <p className="mt-3 text-sm text-zinc-300">{inquiry.message}</p>
-                <p className="mt-2 text-xs text-zinc-500">{new Date(inquiry.created_at).toLocaleString()}</p>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
     </div>
   );
 }

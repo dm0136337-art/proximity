@@ -9,17 +9,21 @@ export type ProjectStatus =
   | "Post-Production"
   | "Completed";
 
-export type InquiryStatus = "new" | "read" | "responded";
-
 export type ProjectRecord = {
   id: string;
   title: string;
   slug: string;
   synopsis: string;
   genre: string;
+  based_on: string | null;
+  author: string | null;
+  publisher: string | null;
+  producer: string | null;
+  executive_producers: string[];
   director: string;
+  screenplay: string | null;
+  production_company: string | null;
   poster_url: string | null;
-  promotional_images: string[] | null;
   cast: string[] | null;
   production_crew: string[] | null;
   production_start_date: string | null;
@@ -29,18 +33,6 @@ export type ProjectRecord = {
   created_at: string;
   updated_at: string;
   poster_display_url?: string | null;
-  promotional_images_display?: string[];
-};
-
-export type InquiryRecord = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone_number: string;
-  email: string;
-  message: string;
-  status: InquiryStatus;
-  created_at: string;
 };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
@@ -85,9 +77,15 @@ export function coerceProject(record: Partial<ProjectRecord>): ProjectRecord {
     slug: record.slug ?? "untitled",
     synopsis: record.synopsis ?? "",
     genre: record.genre ?? "Drama",
+    based_on: record.based_on ?? null,
+    author: record.author ?? null,
+    publisher: record.publisher ?? null,
+    producer: record.producer ?? null,
+    executive_producers: record.executive_producers ?? [],
     director: record.director ?? "",
+    screenplay: record.screenplay ?? null,
+    production_company: record.production_company ?? null,
     poster_url: record.poster_url ?? null,
-    promotional_images: record.promotional_images ?? [],
     cast: record.cast ?? [],
     production_crew: record.production_crew ?? [],
     production_start_date: record.production_start_date ?? null,
@@ -96,19 +94,6 @@ export function coerceProject(record: Partial<ProjectRecord>): ProjectRecord {
     is_published: Boolean(record.is_published),
     created_at: record.created_at ?? "",
     updated_at: record.updated_at ?? "",
-  };
-}
-
-export function coerceInquiry(record: Partial<InquiryRecord>): InquiryRecord {
-  return {
-    id: record.id ?? "",
-    first_name: record.first_name ?? "",
-    last_name: record.last_name ?? "",
-    phone_number: record.phone_number ?? "",
-    email: record.email ?? "",
-    message: record.message ?? "",
-    status: record.status ?? "new",
-    created_at: record.created_at ?? "",
   };
 }
 
@@ -163,21 +148,14 @@ async function createDisplayUrl(client: SupabaseClient, asset: string | null) {
   return data.signedUrl;
 }
 
-export async function withProjectDisplayAssets(
+export async function withProjectPosterDisplayUrl(
   client: SupabaseClient,
   project: ProjectRecord,
 ): Promise<ProjectRecord> {
-  const [posterDisplayUrl, promotionalImagesDisplay] = await Promise.all([
-    createDisplayUrl(client, project.poster_url),
-    Promise.all((project.promotional_images ?? []).map((image) => createDisplayUrl(client, image))),
-  ]);
-
+  const posterDisplayUrl = await createDisplayUrl(client, project.poster_url);
   return {
     ...project,
     poster_display_url: posterDisplayUrl,
-    promotional_images_display: promotionalImagesDisplay.filter(
-      (image): image is string => image !== null,
-    ),
   };
 }
 
@@ -202,19 +180,12 @@ export async function getPublishedProjects() {
   const projects = (data ?? []).map((entry) => coerceProject(entry));
   const adminClient = getAdminSupabaseClient();
 
-  if (
-    !adminClient &&
-    projects.some((project) =>
-      [project.poster_url, ...(project.promotional_images ?? [])].some(
-        (asset) => asset !== null && getPrivateStoragePath(asset) !== null,
-      ),
-    )
-  ) {
+  if (!adminClient && projects.some((project) => project.poster_url && getPrivateStoragePath(project.poster_url) !== null)) {
     console.error("Supabase service-role configuration is required to display private project assets.");
   }
 
   return adminClient
-    ? Promise.all(projects.map((project) => withProjectDisplayAssets(adminClient, project)))
+    ? Promise.all(projects.map((project) => withProjectPosterDisplayUrl(adminClient, project)))
     : projects;
 }
 
@@ -249,7 +220,7 @@ export async function getProjectBySlug(slug: string) {
     return project;
   }
 
-  return adminClient ? withProjectDisplayAssets(adminClient, project) : project;
+  return adminClient ? withProjectPosterDisplayUrl(adminClient, project) : project;
 }
 
 export async function getAdminDashboardData() {
@@ -259,27 +230,20 @@ export async function getAdminDashboardData() {
     throw new Error("Supabase service-role configuration is missing.");
   }
 
-  const [projectsResult, inquiriesResult] = await Promise.all([
-    client.from("projects").select("*").order("created_at", { ascending: false }),
-    client.from("inquiries").select("*").order("created_at", { ascending: false }),
-  ]);
+  const projectsResult = await client
+    .from("projects")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   if (projectsResult.error) {
     console.error("Could not load administrator projects.", { code: projectsResult.error.code });
     throw new Error("Could not load administrator dashboard data.");
   }
 
-  if (inquiriesResult.error) {
-    console.error("Could not load administrator inquiries.", { code: inquiriesResult.error.code });
-    throw new Error("Could not load administrator dashboard data.");
-  }
-
   const projects = await Promise.all(
     (projectsResult.data ?? [])
       .map((entry) => coerceProject(entry))
-      .map((project) => withProjectDisplayAssets(client, project)),
+      .map((project) => withProjectPosterDisplayUrl(client, project)),
   );
-  const inquiries = (inquiriesResult.data ?? []).map((entry) => coerceInquiry(entry));
-
-  return { projects, inquiries };
+  return { projects };
 }
