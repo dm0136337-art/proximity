@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProjectBySlug } from "@/lib/supabase";
+import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,15 @@ export default async function ProductionDetailPage({
     notFound();
   }
 
+  const trailerVideoId = project.youtube_trailer_url
+    ? getYouTubeVideoId(project.youtube_trailer_url)
+    : null;
+  const trailerEmbedUrl = project.youtube_trailer_url
+    ? getYouTubeEmbedUrl(project.youtube_trailer_url)
+    : null;
+  const trailerWatchUrl = trailerVideoId
+    ? `https://www.youtube.com/watch?v=${trailerVideoId}`
+    : null;
   const sourceMaterial = [
     { label: "Based on (original book title)", value: project.based_on },
     { label: "Publisher", value: project.publisher },
@@ -61,18 +71,44 @@ export default async function ProductionDetailPage({
         ← Back to productions
       </Link>
 
-      <section className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="relative h-[540px] overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-900">
-          <Image
-            src={project.poster_display_url || (project.poster_url?.startsWith("storage://") ? null : project.poster_url) || "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=1200&q=80"}
-            alt={project.title}
-            fill
-            className="object-cover"
-            unoptimized
-          />
+      <section className="grid min-w-0 gap-8 md:grid-cols-2 md:gap-8">
+        <div className="min-w-0 space-y-6">
+          <div className="relative h-[540px] overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-900">
+            <Image
+              src={project.poster_display_url || (project.poster_url?.startsWith("storage://") ? null : project.poster_url) || "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=1200&q=80"}
+              alt={project.title}
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+          {trailerEmbedUrl ? (
+            <div className="aspect-video w-full min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-black">
+              <iframe
+                src={trailerEmbedUrl}
+                title={`${project.title} trailer`}
+                width={1280}
+                height={720}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+          ) : null}
+          {trailerWatchUrl ? (
+            <a
+              href={trailerWatchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex text-sm text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
+            >
+              If the trailer is unavailable here, watch it on YouTube.
+            </a>
+          ) : null}
         </div>
 
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8">
           <section aria-labelledby="film-overview">
             <p id="film-overview" className="text-xs uppercase tracking-[0.4em] text-zinc-400">Film Overview</p>
             <h1 className="mt-4 text-4xl font-semibold text-white sm:text-5xl">{project.title}</h1>

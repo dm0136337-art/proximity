@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { getYouTubeVideoId } from "@/lib/youtube";
 import {
   coerceProject,
   getAdminSupabaseClient,
@@ -34,6 +35,20 @@ const assetReferenceSchema = z
     }
   });
 
+const youtubeTrailerUrlSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z
+    .string()
+    .trim()
+    .max(2048)
+    .nullable()
+    .optional()
+    .refine(
+      (value) => value === null || value === undefined || getYouTubeVideoId(value) !== null,
+      "Enter a valid YouTube video URL.",
+    ),
+);
+
 const projectSchema = z.strictObject({
   id: z.uuid().optional(),
   title: z.string().trim().min(1).max(200),
@@ -48,6 +63,7 @@ const projectSchema = z.strictObject({
   director: z.string().trim().max(200).optional().default(""),
   screenplay: z.string().trim().max(200).optional().default(""),
   production_company: z.string().trim().max(200).optional().default(""),
+  youtube_trailer_url: youtubeTrailerUrlSchema,
   poster_url: assetReferenceSchema.optional().default(""),
   production_start_date: z.preprocess(
     (value) => (value === "" ? null : value),
@@ -62,6 +78,7 @@ const projectSchema = z.strictObject({
 });
 
 const idSchema = z.strictObject({ id: z.uuid() });
+const removeTrailerSchema = z.strictObject({ id: z.uuid() });
 
 async function readJson(request: Request) {
   try {
@@ -136,6 +153,7 @@ export async function POST(request: Request) {
       director: parsed.data.director,
       screenplay: parsed.data.screenplay || null,
       production_company: parsed.data.production_company || null,
+      youtube_trailer_url: parsed.data.youtube_trailer_url || null,
       poster_url: parsed.data.poster_url || null,
       production_start_date: parsed.data.production_start_date || null,
       expected_release_date: parsed.data.expected_release_date || null,
@@ -194,6 +212,7 @@ export async function PUT(request: Request) {
       director: parsed.data.director,
       screenplay: parsed.data.screenplay || null,
       production_company: parsed.data.production_company || null,
+      youtube_trailer_url: parsed.data.youtube_trailer_url || null,
       poster_url: parsed.data.poster_url || null,
       production_start_date: parsed.data.production_start_date || null,
       expected_release_date: parsed.data.expected_release_date || null,
@@ -216,6 +235,46 @@ export async function PUT(request: Request) {
   return NextResponse.json({
     project: await withProjectPosterDisplayUrl(client, coerceProject(data)),
   }, { status: 200 });
+}
+
+export async function PATCH(request: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { body, valid } = await readJson(request);
+  if (!valid) {
+    return NextResponse.json({ error: "The trailer removal request must contain valid JSON." }, { status: 400 });
+  }
+
+  const parsed = removeTrailerSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "A valid project ID is required." }, { status: 400 });
+  }
+
+  const client = getAdminSupabaseClient();
+  if (!client) {
+    console.error("Supabase service-role configuration is missing for project management.");
+    return NextResponse.json({ error: "Project management is not configured." }, { status: 503 });
+  }
+
+  const { data, error } = await client
+    .from("projects")
+    .update({ youtube_trailer_url: null })
+    .eq("id", parsed.data.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Could not remove a project trailer.", { code: error.code });
+    return NextResponse.json({ error: "Could not remove the project trailer." }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true }, { status: 200 });
 }
 
 export async function DELETE(request: Request) {

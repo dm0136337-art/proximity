@@ -28,7 +28,8 @@ A luxury cinematic production studio website built with Next.js, TypeScript, Tai
    - `supabase/migrations/002_secure_inquiries_and_rate_limits.sql`
    - `supabase/migrations/003_film_project_information.sql`
    - `supabase/migrations/004_expand_production_statuses.sql`
-   Apply these migrations once, in order. They do not drop tables or rewrite existing project records; the status migrations validate existing values and fail rather than rewriting unexpected data. Migration 004 replaces the production-status constraint from migration 002 to allow `Released` and `On Hold`; do not rerun migration 002 after those statuses are in use. These files are not applied automatically by the application or deployment.
+   - `supabase/migrations/005_add_youtube_trailers.sql`
+   Apply these migrations once, in order. They do not drop tables or rewrite existing project records; the status migrations validate existing values and fail rather than rewriting unexpected data. Migration 004 replaces the production-status constraint from migration 002 to allow `Released` and `On Hold`; do not rerun migration 002 after those statuses are in use. Migration 005 adds a nullable YouTube trailer URL column. These files are not applied automatically by the application or deployment.
 5. In Supabase Storage, create a **private** bucket named `production-assets`, set the maximum file size to 5 MB, and allow JPEG, PNG, WebP, and AVIF. Do not add public read/write policies. The server uses the service-role key to upload assets and creates short-lived signed URLs only for assets attached to published projects.
 6. Start the app:
 

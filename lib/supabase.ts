@@ -25,6 +25,7 @@ export type ProjectRecord = {
   director: string;
   screenplay: string | null;
   production_company: string | null;
+  youtube_trailer_url: string | null;
   poster_url: string | null;
   cast: string[] | null;
   production_crew: string[] | null;
@@ -87,6 +88,7 @@ export function coerceProject(record: Partial<ProjectRecord>): ProjectRecord {
     director: record.director ?? "",
     screenplay: record.screenplay ?? null,
     production_company: record.production_company ?? null,
+    youtube_trailer_url: record.youtube_trailer_url ?? null,
     poster_url: record.poster_url ?? null,
     cast: record.cast ?? [],
     production_crew: record.production_crew ?? [],

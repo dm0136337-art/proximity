@@ -26,6 +26,7 @@ const emptyProject = {
   director: "",
   screenplay: "",
   production_company: "",
+  youtube_trailer_url: "",
   poster_url: "",
   production_start_date: "",
   expected_release_date: "",
@@ -109,6 +110,7 @@ export function AdminDashboard({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemovingTrailer, setIsRemovingTrailer] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -197,12 +199,47 @@ export function AdminDashboard({
       director: project.director,
       screenplay: project.screenplay ?? "",
       production_company: project.production_company ?? "",
+      youtube_trailer_url: project.youtube_trailer_url ?? "",
       poster_url: project.poster_url ?? "",
       production_start_date: project.production_start_date ?? "",
       expected_release_date: project.expected_release_date ?? "",
       production_status: project.production_status,
       is_published: project.is_published,
     });
+  };
+
+  const handleTrailerRemoval = async () => {
+    if (!editingId || !window.confirm("Remove the saved YouTube trailer from this project? This will not delete the project.")) {
+      return;
+    }
+
+    setNotice("");
+    setError("");
+    setIsRemovingTrailer(true);
+
+    try {
+      const response = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingId }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to remove the trailer.");
+      }
+
+      setProjectForm((current) => ({ ...current, youtube_trailer_url: "" }));
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === editingId ? { ...project, youtube_trailer_url: null } : project,
+        ),
+      );
+      setNotice("YouTube trailer removed. The project was not deleted.");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to remove the trailer.");
+    } finally {
+      setIsRemovingTrailer(false);
+    }
   };
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -399,6 +436,43 @@ export function AdminDashboard({
             </fieldset>
 
             <fieldset className="space-y-4 border-t border-white/10 pt-5">
+              <legend className="mb-3 text-base font-semibold text-white">YouTube Trailer</legend>
+              <label className="block space-y-2">
+                <span className="text-sm text-zinc-300">YouTube video URL (optional)</span>
+                <input
+                  type="url"
+                  aria-label="YouTube trailer URL"
+                  value={projectForm.youtube_trailer_url}
+                  onChange={(event) =>
+                    setProjectForm((current) => ({
+                      ...current,
+                      youtube_trailer_url: event.target.value,
+                    }))
+                  }
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
+                />
+              </label>
+              <p className="text-sm text-zinc-400">
+                {editingId
+                  ? projects.find((project) => project.id === editingId)?.youtube_trailer_url
+                    ? "This project has a saved trailer."
+                    : "No trailer is currently saved."
+                  : "The trailer will be saved when you create the project."}
+              </p>
+              {editingId && projects.find((project) => project.id === editingId)?.youtube_trailer_url ? (
+                <button
+                  type="button"
+                  onClick={handleTrailerRemoval}
+                  disabled={isSaving || isRemovingTrailer}
+                  className="rounded-full border border-rose-500/30 px-4 py-2 text-sm text-rose-200 disabled:opacity-50"
+                >
+                  {isRemovingTrailer ? "Removing trailer..." : "Remove saved trailer"}
+                </button>
+              ) : null}
+            </fieldset>
+
+            <fieldset className="space-y-4 border-t border-white/10 pt-5">
               <legend className="mb-3 text-base font-semibold text-white">Production Timeline</legend>
               <label className="block space-y-2">
                 <span className="text-sm text-zinc-300">Development status</span>
@@ -465,7 +539,7 @@ export function AdminDashboard({
 
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isRemovingTrailer}
               className="inline-flex items-center justify-center rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black"
             >
               {isSaving ? "Saving..." : editingId ? "Update project" : "Add project"}
@@ -482,6 +556,9 @@ export function AdminDashboard({
                   <div>
                     <p className="font-medium text-white">{project.title}</p>
                     <p className="text-xs text-zinc-400">{project.production_status}</p>
+                    <p className="text-xs text-zinc-500">
+                      {project.youtube_trailer_url ? "YouTube trailer saved" : "No YouTube trailer"}
+                    </p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {[
                         project.genre && `Genre: ${project.genre}`,
