@@ -13,6 +13,8 @@ const projectStatusSchema = z.enum([
   "In Production",
   "Post-Production",
   "Completed",
+  "Released",
+  "On Hold",
 ]);
 
 const assetReferenceSchema = z
@@ -36,8 +38,8 @@ const projectSchema = z.strictObject({
   id: z.uuid().optional(),
   title: z.string().trim().min(1).max(200),
   slug: z.string().trim().min(1).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  synopsis: z.string().trim().min(10).max(10000),
-  genre: z.string().trim().min(1).max(100),
+  synopsis: z.string().trim().max(10000).optional().default(""),
+  genre: z.string().trim().max(100).optional().default(""),
   based_on: z.string().trim().max(300).optional().default(""),
   author: z.string().trim().max(200).optional().default(""),
   publisher: z.string().trim().max(200).optional().default(""),
@@ -55,7 +57,7 @@ const projectSchema = z.strictObject({
     (value) => (value === "" ? null : value),
     z.iso.date().nullable().optional(),
   ),
-  production_status: projectStatusSchema,
+  production_status: projectStatusSchema.optional().default("In Development"),
   is_published: z.boolean().optional().default(false),
 });
 

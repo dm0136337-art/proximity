@@ -27,7 +27,8 @@ A luxury cinematic production studio website built with Next.js, TypeScript, Tai
    - `supabase/migrations/001_create_schema.sql`
    - `supabase/migrations/002_secure_inquiries_and_rate_limits.sql`
    - `supabase/migrations/003_film_project_information.sql`
-   The scripts are safe to rerun: they create missing objects, replace only their own trigger and named policies, and do not drop tables or rewrite records. The second migration adds allowed-status constraints and installs the database-backed rate limiter. Review existing production status values before applying it; constraints intentionally fail rather than rewrite unexpected existing data. These files are not applied automatically by the application or deployment.
+   - `supabase/migrations/004_expand_production_statuses.sql`
+   Apply these migrations once, in order. They do not drop tables or rewrite existing project records; the status migrations validate existing values and fail rather than rewriting unexpected data. Migration 004 replaces the production-status constraint from migration 002 to allow `Released` and `On Hold`; do not rerun migration 002 after those statuses are in use. These files are not applied automatically by the application or deployment.
 5. In Supabase Storage, create a **private** bucket named `production-assets`, set the maximum file size to 5 MB, and allow JPEG, PNG, WebP, and AVIF. Do not add public read/write policies. The server uses the service-role key to upload assets and creates short-lived signed URLs only for assets attached to published projects.
 6. Start the app:
 

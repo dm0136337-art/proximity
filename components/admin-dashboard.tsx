@@ -10,6 +10,8 @@ const STATUS_OPTIONS: ProjectStatus[] = [
   "In Production",
   "Post-Production",
   "Completed",
+  "Released",
+  "On Hold",
 ];
 
 const emptyProject = {
@@ -256,10 +258,11 @@ export function AdminDashboard({
 
           <form onSubmit={handleProjectSubmit} className="space-y-5">
             <fieldset className="space-y-4">
-              <legend className="mb-3 text-base font-semibold text-white">Basic Project Information</legend>
+              <legend className="mb-3 text-base font-semibold text-white">Basic Film Information</legend>
               <div className="grid gap-4 md:grid-cols-2">
                 <input
                   aria-label="Film title"
+                  required
                   value={projectForm.title}
                   onChange={(event) => setProjectForm((current) => ({ ...current, title: event.target.value }))}
                   placeholder="Film title"
@@ -272,6 +275,12 @@ export function AdminDashboard({
                   placeholder="Genre"
                   className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
                 />
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-4 border-t border-white/10 pt-5">
+              <legend className="mb-3 text-base font-semibold text-white">Book Information</legend>
+              <div className="grid gap-4 md:grid-cols-2">
                 <input
                   aria-label="Based on"
                   value={projectForm.based_on}
@@ -297,7 +306,7 @@ export function AdminDashboard({
             </fieldset>
 
             <fieldset className="space-y-4 border-t border-white/10 pt-5">
-              <legend className="mb-3 text-base font-semibold text-white">Production Information</legend>
+              <legend className="mb-3 text-base font-semibold text-white">Production Credits</legend>
               <div className="grid gap-4 md:grid-cols-2">
                 <input
                   aria-label="Producer"
@@ -377,46 +386,55 @@ export function AdminDashboard({
               </div>
             </fieldset>
 
-            <textarea
-              value={projectForm.synopsis}
-              onChange={(event) => setProjectForm((current) => ({ ...current, synopsis: event.target.value }))}
-              placeholder="Synopsis"
-              rows={4}
-              className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <select
-                value={projectForm.production_status}
-                onChange={(event) => setProjectForm((current) => ({ ...current, production_status: event.target.value as ProjectStatus }))}
-                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
-              >
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status} className="bg-black text-white">
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <ProjectDateField
-                id="production-start-date"
-                label="Production Start Date"
-                description=""
-                placeholder="Select production start date"
-                value={projectForm.production_start_date}
-                onChange={(value) => setProjectForm((current) => ({ ...current, production_start_date: value }))}
+            <fieldset className="space-y-4 border-t border-white/10 pt-5">
+              <legend className="mb-3 text-base font-semibold text-white">Film Description</legend>
+              <textarea
+                aria-label="Synopsis"
+                value={projectForm.synopsis}
+                onChange={(event) => setProjectForm((current) => ({ ...current, synopsis: event.target.value }))}
+                placeholder="Synopsis"
+                rows={5}
+                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white"
               />
-              <ProjectDateField
-                id="expected-release-date"
-                label="Expected Release Date"
-                description=""
-                placeholder="Select expected release date"
-                value={projectForm.expected_release_date}
-                onChange={(value) => setProjectForm((current) => ({ ...current, expected_release_date: value }))}
-              />
-            </div>
+            </fieldset>
+
+            <fieldset className="space-y-4 border-t border-white/10 pt-5">
+              <legend className="mb-3 text-base font-semibold text-white">Production Timeline</legend>
+              <label className="block space-y-2">
+                <span className="text-sm text-zinc-300">Development status</span>
+                <select
+                  aria-label="Development status"
+                  value={projectForm.production_status}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, production_status: event.target.value as ProjectStatus }))}
+                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-white md:max-w-sm"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status} className="bg-black text-white">
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <ProjectDateField
+                  id="production-start-date"
+                  label="Production Date"
+                  description=""
+                  placeholder="Select production date"
+                  value={projectForm.production_start_date}
+                  onChange={(value) => setProjectForm((current) => ({ ...current, production_start_date: value }))}
+                />
+                <ProjectDateField
+                  id="expected-release-date"
+                  label="Expected Release Date"
+                  description=""
+                  placeholder="Select expected release date"
+                  value={projectForm.expected_release_date}
+                  onChange={(value) => setProjectForm((current) => ({ ...current, expected_release_date: value }))}
+                />
+              </div>
+            </fieldset>
 
             <div className="space-y-3">
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-zinc-200">

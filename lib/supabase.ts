@@ -7,7 +7,9 @@ export type ProjectStatus =
   | "Pre-Production"
   | "In Production"
   | "Post-Production"
-  | "Completed";
+  | "Completed"
+  | "Released"
+  | "On Hold";
 
 export type ProjectRecord = {
   id: string;
