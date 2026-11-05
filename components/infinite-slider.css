@@ -1,0 +1,41 @@
+.production-slider-track {
+  gap: var(--slider-gap);
+  animation: production-slider-scroll var(--slider-duration) linear infinite;
+  will-change: transform;
+}
+
+.production-slider-logo {
+  object-fit: contain;
+  filter: grayscale(1) brightness(0) invert(1);
+  opacity: 0.72;
+}
+
+.production-slider-logo-frame {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+.production-slider-track.production-slider-reverse {
+  animation-direction: reverse;
+}
+
+.production-slider-track.production-slider-slow-hover:hover {
+  animation-duration: calc(var(--slider-duration) * 2);
+}
+
+@keyframes production-slider-scroll {
+  to {
+    transform: translateX(calc(-50% - var(--slider-gap) / 2));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .production-slider-track {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+}

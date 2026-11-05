@@ -177,7 +177,12 @@ export async function getPublishedProjects() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Could not load published projects.", { code: error.code });
+    console.error("Could not load published projects.", {
+      code: error.code || undefined,
+      message: error.message,
+      details: error.details || undefined,
+      hint: error.hint || undefined,
+    });
     return [];
   }
 

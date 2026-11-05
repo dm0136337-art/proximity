@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getPublishedProjects } from "@/lib/supabase";
+import { InfiniteSlider } from "@/components/infinite-slider";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <InfiniteSlider />
 
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="mb-10 flex items-end justify-between gap-4">
