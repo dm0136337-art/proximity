@@ -14,8 +14,8 @@ export default function ContactPage() {
           </p>
 
           <div className="mt-10 space-y-5 text-zinc-300">
-            <p>hello@proximityproduction.com</p>
-            <p>+1 (212) 555-0191</p>
+            <p>info@proximityproduction.com</p>
+            <p></p>
             <p>New York · London · Lisbon</p>
           </div>
         </div>
